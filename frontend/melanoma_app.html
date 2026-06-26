@@ -1,0 +1,435 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8"/>
+  <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+  <title>DermAI — Melanoma Detection</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com"/>
+  <link href="https://fonts.googleapis.com/css2?family=DM+Serif+Display:ital@0;1&family=DM+Sans:opsz,wght@9..40,300;9..40,400;9..40,500;9..40,600&display=swap" rel="stylesheet"/>
+  <style>
+    *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+    :root {
+      --bg:          #0b0f17;
+      --surface:     #111827;
+      --surface2:    #1a2235;
+      --border:      rgba(255,255,255,.07);
+      --border-light:rgba(255,255,255,.13);
+      --text:        #e8edf5;
+      --muted:       #6b7a96;
+      --dim:         #3d4d68;
+      --accent:      #4f8cff;
+      --accent-gl:   rgba(79,140,255,.15);
+      --green:       #22d3a0;
+      --green-bg:    rgba(34,211,160,.12);
+      --red:         #f56262;
+      --red-bg:      rgba(245,98,98,.12);
+      --r:           16px;
+      --t:           .25s cubic-bezier(.4,0,.2,1);
+    }
+
+    html { scroll-behavior: smooth; }
+    body {
+      font-family: 'DM Sans', system-ui, sans-serif;
+      background: var(--bg);
+      color: var(--text);
+      min-height: 100vh;
+      overflow-x: hidden;
+    }
+
+    /* ── grid bg ── */
+    .bg-grid {
+      position: fixed; inset: 0; z-index: 0; pointer-events: none;
+      background-image:
+        linear-gradient(var(--border) 1px, transparent 1px),
+        linear-gradient(90deg, var(--border) 1px, transparent 1px);
+      background-size: 60px 60px;
+      mask-image: radial-gradient(ellipse 80% 60% at 50% 0%, black 30%, transparent 100%);
+    }
+
+    .wrap {
+      position: relative; z-index: 1;
+      max-width: 780px; margin: 0 auto; padding: 0 24px 80px;
+      animation: fadeUp .55s ease both;
+    }
+
+    /* ── header ── */
+    header {
+      display: flex; align-items: center; justify-content: space-between;
+      padding: 28px 0 36px;
+    }
+    .logo {
+      display: flex; align-items: center; gap: 10px;
+      font-family: 'DM Serif Display', serif; font-size: 1.2rem;
+    }
+    .logo-icon { color: var(--accent); font-size: 1.35rem; }
+    .logo em { font-style: italic; color: var(--accent); }
+    .badge {
+      font-size: .7rem; font-weight: 500; letter-spacing: .08em; text-transform: uppercase;
+      color: var(--muted); border: 1px solid var(--border-light);
+      border-radius: 99px; padding: 5px 12px;
+    }
+
+    /* ── hero ── */
+    .hero { text-align: center; padding: 4px 0 48px; }
+    .eyebrow {
+      font-size: .75rem; font-weight: 500; letter-spacing: .12em; text-transform: uppercase;
+      color: var(--accent); margin-bottom: 16px;
+    }
+    .hero h1 {
+      font-family: 'DM Serif Display', serif;
+      font-size: clamp(2.4rem, 5.5vw, 3.6rem);
+      line-height: 1.1; letter-spacing: -.03em; margin-bottom: 18px;
+    }
+    .hero h1 em { font-style: italic; color: var(--accent); }
+    .hero p { font-size: .97rem; line-height: 1.75; color: var(--muted); max-width: 440px; margin: 0 auto; }
+
+    /* ── panel ── */
+    .panel {
+      background: var(--surface);
+      border: 1px solid var(--border);
+      border-radius: var(--r);
+      padding: 34px;
+      margin-bottom: 18px;
+    }
+
+    /* ── drop zone ── */
+    .drop-zone {
+      border: 2px dashed var(--border-light);
+      border-radius: 12px;
+      min-height: 210px;
+      display: flex; align-items: center; justify-content: center;
+      cursor: pointer; transition: var(--t); position: relative; overflow: hidden;
+    }
+    .drop-zone:hover, .drop-zone:focus-visible {
+      border-color: var(--accent); background: var(--accent-gl); outline: none;
+    }
+    .drop-zone.drag { border-color: var(--accent); background: var(--accent-gl); transform: scale(1.01); }
+
+    .drop-inner {
+      display: flex; flex-direction: column; align-items: center; gap: 7px;
+      padding: 32px 20px; text-align: center; pointer-events: none;
+    }
+    .drop-icon {
+      width: 50px; height: 50px; color: var(--dim); margin-bottom: 6px;
+      transition: color var(--t);
+    }
+    .drop-zone:hover .drop-icon, .drop-zone.drag .drop-icon { color: var(--accent); }
+    .drop-icon svg { width: 100%; height: 100%; }
+    .drop-title { font-size: 1rem; font-weight: 500; }
+    .drop-sub { font-size: .88rem; color: var(--muted); }
+    .drop-sub span { color: var(--accent); text-decoration: underline; }
+    .drop-fmt { font-size: .7rem; color: var(--dim); letter-spacing: .06em; text-transform: uppercase; margin-top: 4px; }
+
+    .preview-wrap { display: flex; flex-direction: column; align-items: center; gap: 14px; padding: 20px; width: 100%; }
+    .preview-wrap img { max-height: 250px; max-width: 100%; border-radius: 8px; object-fit: contain; box-shadow: 0 8px 30px rgba(0,0,0,.5); }
+    .change-btn {
+      background: none; border: 1px solid var(--border-light); color: var(--muted);
+      border-radius: 8px; padding: 7px 16px; font-size: .82rem; cursor: pointer;
+      transition: var(--t); font-family: inherit; pointer-events: all;
+    }
+    .change-btn:hover { border-color: var(--accent); color: var(--accent); }
+
+    /* ── predict btn ── */
+    .predict-btn {
+      margin-top: 20px; width: 100%;
+      display: flex; align-items: center; justify-content: center; gap: 10px;
+      background: var(--accent); color: #fff;
+      font-family: inherit; font-size: 1rem; font-weight: 600;
+      border: none; border-radius: 10px; padding: 15px 28px;
+      cursor: pointer; transition: var(--t); letter-spacing: .02em;
+      box-shadow: 0 4px 22px rgba(79,140,255,.25);
+    }
+    .predict-btn:hover:not(:disabled) { background: #6aa0ff; box-shadow: 0 6px 26px rgba(79,140,255,.4); transform: translateY(-1px); }
+    .predict-btn:disabled { opacity: .38; cursor: not-allowed; box-shadow: none; transform: none; }
+
+    .spinner {
+      width: 17px; height: 17px;
+      border: 2px solid rgba(255,255,255,.3);
+      border-top-color: #fff; border-radius: 50%;
+      animation: spin .7s linear infinite;
+    }
+
+    .err { margin-top: 12px; color: var(--red); font-size: .86rem; text-align: center; }
+
+    /* ── result ── */
+    .result-header { display: flex; align-items: center; gap: 12px; margin-bottom: 26px; }
+    .rtag {
+      font-size: .7rem; font-weight: 600; letter-spacing: .1em; text-transform: uppercase;
+      border-radius: 6px; padding: 5px 11px; flex-shrink: 0;
+    }
+    .rtag.benign   { background: var(--green-bg); color: var(--green); }
+    .rtag.melanoma { background: var(--red-bg);   color: var(--red);   }
+    .rlabel {
+      font-family: 'DM Serif Display', serif;
+      font-size: 1.6rem; letter-spacing: -.02em; line-height: 1.2;
+    }
+
+    .conf-block { margin-bottom: 22px; }
+    .conf-row { display: flex; justify-content: space-between; font-size: .82rem; color: var(--muted); margin-bottom: 8px; }
+    #confValue { font-weight: 600; color: var(--text); }
+    .bar-track { height: 8px; border-radius: 99px; background: var(--surface2); overflow: hidden; }
+    .bar-fill   { height: 100%; border-radius: 99px; transition: width .9s cubic-bezier(.4,0,.2,1); }
+    .bar-fill.benign   { background: linear-gradient(90deg, var(--green), #34d399); }
+    .bar-fill.melanoma { background: linear-gradient(90deg, #f87171, var(--red)); }
+
+    .rdetails {
+      background: var(--surface2); border-radius: 10px; padding: 16px 18px;
+      font-size: .88rem; line-height: 1.7; color: var(--muted);
+      margin-bottom: 22px; border-left: 3px solid var(--border-light);
+    }
+    .rdetails.benign   { border-left-color: var(--green); }
+    .rdetails.melanoma { border-left-color: var(--red); }
+
+    .disclaimer {
+      display: flex; gap: 11px; align-items: flex-start;
+      background: rgba(255,255,255,.03); border: 1px solid var(--border);
+      border-radius: 10px; padding: 14px 16px; margin-bottom: 22px;
+      font-size: .82rem; line-height: 1.65; color: var(--muted);
+    }
+    .disclaimer svg { width: 17px; height: 17px; flex-shrink: 0; margin-top: 2px; color: var(--dim); }
+    .disclaimer strong { color: var(--text); }
+
+    .reset-btn {
+      width: 100%; background: none; border: 1px solid var(--border-light);
+      color: var(--muted); font-family: inherit; font-size: .9rem;
+      border-radius: 8px; padding: 11px; cursor: pointer; transition: var(--t);
+    }
+    .reset-btn:hover { border-color: var(--accent); color: var(--accent); }
+
+    footer { text-align: center; font-size: .75rem; color: var(--dim); letter-spacing: .03em; margin-top: 48px; }
+
+    .hidden { display: none !important; }
+    @keyframes fadeUp { from { opacity:0; transform:translateY(16px); } to { opacity:1; transform:translateY(0); } }
+    @keyframes spin   { to   { transform: rotate(360deg); } }
+
+    @media (max-width: 520px) {
+      .panel { padding: 22px 16px; }
+      .hero h1 { font-size: 2.1rem; }
+      .rlabel  { font-size: 1.3rem; }
+    }
+  </style>
+</head>
+<body>
+
+<div class="bg-grid" aria-hidden="true"></div>
+
+<div class="wrap">
+
+  <header>
+    <div class="logo">
+      <span class="logo-icon">◈</span>
+      <span>Derm<em>AI</em></span>
+    </div>
+    <div class="badge">Beta · Research Only</div>
+  </header>
+
+  <section class="hero">
+    <p class="eyebrow">Vision Transformer · ViT Model</p>
+    <h1>Skin Lesion<br/><em>Analysis</em></h1>
+    <p>Upload a dermoscopy or close-up photo of a skin lesion. Our AI will assess the likelihood of melanoma in seconds.</p>
+  </section>
+
+  <!-- Upload panel -->
+  <div class="panel" id="uploadPanel">
+    <div class="drop-zone" id="dropZone" tabindex="0" role="button" aria-label="Click or drag an image to upload">
+
+      <div class="drop-inner" id="dropInner">
+        <div class="drop-icon">
+          <svg viewBox="0 0 48 48" fill="none" xmlns="http://www.w3.org/2000/svg">
+            <circle cx="24" cy="24" r="23" stroke="currentColor" stroke-width="1.5"/>
+            <path d="M24 32V18M17 25l7-7 7 7" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"/>
+          </svg>
+        </div>
+        <p class="drop-title">Drop image here</p>
+        <p class="drop-sub">or <span>browse files</span></p>
+        <p class="drop-fmt">PNG · JPG · JPEG · WEBP · BMP</p>
+      </div>
+
+      <div class="preview-wrap hidden" id="previewWrap">
+        <img id="previewImg" src="" alt="Uploaded lesion preview"/>
+        <button class="change-btn" id="changeBtn" type="button">Change image</button>
+      </div>
+
+    </div>
+
+    <input type="file" id="fileInput" accept="image/*" hidden/>
+
+    <button class="predict-btn" id="predictBtn" type="button" disabled>
+      <span id="btnText">Upload &amp; Predict</span>
+      <span class="spinner hidden" id="spinner" aria-hidden="true"></span>
+    </button>
+
+    <p class="err hidden" id="errMsg" role="alert"></p>
+  </div>
+
+  <!-- Result panel -->
+  <div class="panel hidden" id="resultPanel" aria-live="polite">
+
+    <div class="result-header">
+      <span class="rtag" id="rtag">—</span>
+      <p class="rlabel" id="rlabel">Analysing…</p>
+    </div>
+
+    <div class="conf-block">
+      <div class="conf-row">
+        <span>Confidence</span>
+        <span id="confValue">—</span>
+      </div>
+      <div class="bar-track">
+        <div class="bar-fill" id="barFill" style="width:0%"></div>
+      </div>
+    </div>
+
+    <div class="rdetails" id="rdetails"></div>
+
+    <div class="disclaimer">
+      <svg viewBox="0 0 20 20" fill="none">
+        <circle cx="10" cy="10" r="9" stroke="currentColor" stroke-width="1.4"/>
+        <path d="M10 6v5M10 14h.01" stroke="currentColor" stroke-width="1.6" stroke-linecap="round"/>
+      </svg>
+      <p>This is an <strong>AI prediction</strong> for research purposes only. Please consult a qualified dermatologist for any medical decisions.</p>
+    </div>
+
+    <button class="reset-btn" id="resetBtn" type="button">Analyse another image</button>
+  </div>
+
+  <footer>DermAI is not a medical device. Outputs must never replace professional diagnosis.</footer>
+
+</div>
+
+<script>
+  const dropZone   = document.getElementById('dropZone');
+  const dropInner  = document.getElementById('dropInner');
+  const previewWrap= document.getElementById('previewWrap');
+  const previewImg = document.getElementById('previewImg');
+  const fileInput  = document.getElementById('fileInput');
+  const predictBtn = document.getElementById('predictBtn');
+  const btnText    = document.getElementById('btnText');
+  const spinner    = document.getElementById('spinner');
+  const errMsg     = document.getElementById('errMsg');
+  const changeBtn  = document.getElementById('changeBtn');
+  const resultPanel= document.getElementById('resultPanel');
+  const rtag       = document.getElementById('rtag');
+  const rlabel     = document.getElementById('rlabel');
+  const confValue  = document.getElementById('confValue');
+  const barFill    = document.getElementById('barFill');
+  const rdetails   = document.getElementById('rdetails');
+  const resetBtn   = document.getElementById('resetBtn');
+
+  let selectedFile = null;
+
+  // ── Open file picker ──────────────────────────────────────────────────────
+  dropZone.addEventListener('click', () => fileInput.click());
+  dropZone.addEventListener('keydown', e => { if (e.key==='Enter'||e.key===' ') fileInput.click(); });
+  fileInput.addEventListener('change', () => { if (fileInput.files.length) handleFile(fileInput.files[0]); });
+  changeBtn.addEventListener('click', e => { e.stopPropagation(); resetUpload(); });
+
+  // ── Drag & drop ───────────────────────────────────────────────────────────
+  dropZone.addEventListener('dragover', e => { e.preventDefault(); dropZone.classList.add('drag'); });
+  dropZone.addEventListener('dragleave', () => dropZone.classList.remove('drag'));
+  dropZone.addEventListener('drop', e => {
+    e.preventDefault(); dropZone.classList.remove('drag');
+    if (e.dataTransfer.files.length) handleFile(e.dataTransfer.files[0]);
+  });
+
+  function handleFile(file) {
+    clearErr();
+    const ok = ['image/png','image/jpeg','image/webp','image/bmp'];
+    if (!ok.includes(file.type)) { showErr('Please upload a PNG, JPG, JPEG, WEBP, or BMP image.'); return; }
+    selectedFile = file;
+    const r = new FileReader();
+    r.onload = ev => {
+      previewImg.src = ev.target.result;
+      dropInner.classList.add('hidden');
+      previewWrap.classList.remove('hidden');
+      predictBtn.disabled = false;
+    };
+    r.readAsDataURL(file);
+  }
+
+  // ── Predict ───────────────────────────────────────────────────────────────
+  predictBtn.addEventListener('click', async () => {
+  if (!selectedFile) {
+    showErr('Please select an image first.');
+    return;
+  }
+
+  clearErr();
+  setLoading(true);
+
+  try {
+    const fd = new FormData();
+    fd.append('file', selectedFile);
+
+    const res = await fetch('http://127.0.0.1:5000/predict', {
+      method: 'POST',
+      body: fd
+    });
+
+    const data = await res.json();
+
+    if (!res.ok || data.error) {
+      throw new Error(data.error || 'Server error');
+    }
+
+    showResult(data);
+
+  } catch (err) {
+    showErr("⚠️ Failed to connect to backend. Is Flask running?");
+    console.error(err);
+  } finally {
+    setLoading(false);
+  }
+});
+      
+
+  function showResult(data) {
+    const mel  = data.is_melanoma;
+    const conf = data.confidence;
+    const cls  = mel ? 'melanoma' : 'benign';
+
+    rtag.textContent = mel ? '⚠ Melanoma' : '✓ Benign';
+    rtag.className   = 'rtag ' + cls;
+    rlabel.textContent = mel ? 'Melanoma Detected' : 'No Melanoma Detected';
+
+    confValue.textContent = conf.toFixed(1) + '%';
+    barFill.className = 'bar-fill ' + cls;
+    setTimeout(() => barFill.style.width = conf + '%', 50);
+
+    rdetails.className = 'rdetails ' + cls;
+    rdetails.innerHTML = mel
+      ? `<strong style="color:var(--red)">High-risk indicator detected.</strong>
+         The model assigns a <strong>${conf.toFixed(1)}%</strong> confidence score to this
+         lesion being melanoma. Immediate consultation with a certified dermatologist is strongly recommended.`
+      : `<strong style="color:var(--green)">Low-risk indicator.</strong>
+         The model assigns a <strong>${conf.toFixed(1)}%</strong> confidence score to this
+         lesion being benign. Routine skin monitoring is still advised — regular check-ups are always beneficial.`;
+
+    if (data.demo_mode) {
+      rdetails.innerHTML += `<br/><br/><em style="opacity:.5">⚠ Demo mode — model not loaded. Result is random for UI testing.</em>`;
+    }
+
+    resultPanel.classList.remove('hidden');
+    resultPanel.scrollIntoView({ behavior: 'smooth', block: 'start' });
+  }
+
+  resetBtn.addEventListener('click', () => { resetUpload(); resultPanel.classList.add('hidden'); barFill.style.width='0%'; window.scrollTo({top:0,behavior:'smooth'}); });
+
+  function resetUpload() {
+    selectedFile = null; previewImg.src = ''; fileInput.value = '';
+    dropInner.classList.remove('hidden'); previewWrap.classList.add('hidden');
+    predictBtn.disabled = true; clearErr();
+  }
+
+  function setLoading(on) {
+    predictBtn.disabled = on;
+    btnText.textContent  = on ? 'Analysing…' : 'Upload & Predict';
+    spinner.classList.toggle('hidden', !on);
+  }
+  function showErr(m) { errMsg.textContent = m; errMsg.classList.remove('hidden'); }
+  function clearErr()  { errMsg.textContent = ''; errMsg.classList.add('hidden'); }
+</script>
+</body>
+</html>
+</Doc
