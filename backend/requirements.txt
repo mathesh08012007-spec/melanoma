@@ -7,5 +7,5 @@ numpy==1.24.3
 Pillow==10.4.0
 opencv-python-headless==4.8.1.78
 h5py==3.14.0
-protobuf==3.20.3
+protobuf==3.19.6
 gunicorn==23.0.0
