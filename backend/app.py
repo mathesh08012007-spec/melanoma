@@ -9,20 +9,29 @@ CORS(app)
 model = None
 
 # ── Load Model ─────────────────────────────────────────
+import os
+from flask import send_file
+
+BASE_DIR = os.path.dirname(os.path.abspath(__file__))
+
+MODEL_PATH = os.path.join(BASE_DIR, "..", "vit_model.keras")
+
 def load_model():
     global model
     try:
         from vit_keras import vit
         from tensorflow.keras.models import load_model as km
-        model = km(r"C:\files (1)\vit_model.keras", compile=False, safe_mode=False)
+
+        model = km(MODEL_PATH, compile=False, safe_mode=False)
         print("✅ ViT model loaded.")
+
     except Exception as e:
         print(f"⚠️ Model load failed: {e}")
 
-# ── Serve Frontend ─────────────────────────────────────
 @app.route("/")
 def index():
-    return send_file(r"C:\files (1)\templates\melanoma_app.html")
+    html_path = os.path.join(BASE_DIR, "..", "frontend", "melanoma_app.html")
+    return send_file(html_path)
 
 # ── Prediction API ─────────────────────────────────────
 @app.route("/predict", methods=["POST"])
@@ -67,7 +76,6 @@ def predict():
     })
 
 # ── Run Server ─────────────────────────────────────────
-import os
 
 if __name__ == "__main__":
     port = int(os.environ.get("PORT", 5000))
