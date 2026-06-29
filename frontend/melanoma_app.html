@@ -362,7 +362,7 @@
     const fd = new FormData();
     fd.append('file', selectedFile);
 
-    const res = await fetch('http://127.0.0.1:5000/predict', {
+    const res = await fetch('https://melanoma-5.onrender.com/predict', {
       method: 'POST',
       body: fd
     });
